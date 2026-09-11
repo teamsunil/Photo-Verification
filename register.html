@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Register — PhotoVerify</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-mark">P</span>PhotoVerify</div>
+  <nav><a href="admin.html">Admin</a></nav>
+</div>
+
+<div class="page">
+  <div class="stage">
+    <div class="pstep-wrap" id="progressBar"></div>
+    <div class="card">
+      <p class="eyebrow-line">Step 1 of 5</p>
+      <h1 class="title">Create your account</h1>
+      <p class="lede">Register to begin identity verification. You'll confirm your email and take a quick selfie next.</p>
+
+      <div class="form-error" id="formError"></div>
+
+      <form id="registerForm">
+        <div class="field-group">
+          <label for="name">Full name</label>
+          <input type="text" id="name" placeholder="Jordan Lee" autocomplete="name" />
+          <div class="field-error" id="nameError"></div>
+        </div>
+        <div class="field-group">
+          <label for="email">Email address</label>
+          <input type="email" id="email" placeholder="jordan@example.com" autocomplete="email" />
+          <div class="field-error" id="emailError"></div>
+        </div>
+        <div class="field-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="At least 6 characters" autocomplete="new-password" />
+          <div class="field-error" id="passwordError"></div>
+        </div>
+        <button type="submit" class="btn btn-primary">Create account</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="store.js"></script>
+<script src="progress.js"></script>
+<script>
+  renderProgress(0);
+
+  // If already mid-flow, skip straight to the right step
+  const existing = Store.getCurrentUser();
+  if (existing) {
+    window.location.href = pageForStatus(Store.getStatus(existing));
+  }
+
+  const form = document.getElementById("registerForm");
+  const formError = document.getElementById("formError");
+
+  function clearErrors() {
+    formError.classList.remove("show");
+    formError.textContent = "";
+    document.querySelectorAll(".field-error").forEach((el) => (el.textContent = ""));
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    clearErrors();
+
+    const name = document.getElementById("name").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    let hasError = false;
+
+    if (!name) {
+      document.getElementById("nameError").textContent = "Please enter your full name.";
+      hasError = true;
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      document.getElementById("emailError").textContent = "Please enter a valid email address.";
+      hasError = true;
+    }
+    if (!password || password.length < 6) {
+      document.getElementById("passwordError").textContent = "Password must be at least 6 characters.";
+      hasError = true;
+    }
+    if (hasError) return;
+
+    const result = Store.register(name, email, password);
+    if (result.error) {
+      formError.textContent = result.error;
+      formError.classList.add("show");
+      return;
+    }
+    window.location.href = "email-verify.html";
+  });
+</script>
+
+</body>
+</html>

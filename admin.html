@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin — PhotoVerify</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-mark">P</span>PhotoVerify <span style="color:var(--ink-soft); font-weight:400; font-size:13px; margin-left:6px;">/ Admin</span></div>
+  <nav>
+    <a href="register.html">User sign up</a>
+    <a href="#" id="adminLogoutLink" style="display:none;">Log out</a>
+  </nav>
+</div>
+
+<!-- Admin login gate -->
+<div class="page" id="loginView">
+  <div class="stage">
+    <div class="card">
+      <p class="eyebrow-line">Admin access</p>
+      <h1 class="title">Admin login</h1>
+      <p class="lede">Sign in to review submitted selfies and approve user verification.</p>
+
+      <div class="form-error" id="loginError"></div>
+
+      <form id="adminLoginForm">
+        <div class="field-group">
+          <label for="adminEmail">Admin email</label>
+          <input type="email" id="adminEmail" placeholder="admin@photoverify.com" autocomplete="username" />
+        </div>
+        <div class="field-group">
+          <label for="adminPassword">Password</label>
+          <input type="password" id="adminPassword" placeholder="Password" autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-primary">Log in</button>
+      </form>
+      <p style="font-size:12.5px; color:var(--ink-soft); margin-top:16px; text-align:center;">
+        Demo credentials: <strong>admin@photoverify.com</strong> / <strong>admin123</strong>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Admin dashboard -->
+<div class="admin-wrap" id="dashboardView" style="display:none;">
+  <div class="admin-header">
+    <h1 class="title" style="margin-bottom:0;">Verification dashboard</h1>
+  </div>
+  <p class="admin-sub">Pending verifications — review each selfie, then approve once both checks are Yes.</p>
+
+  <div class="admin-stats" id="adminStats"></div>
+  <div id="listWrap"></div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose">&times;</button>
+  <img id="lightboxImg" src="" alt="Full-size selfie" />
+</div>
+
+<script src="store.js"></script>
+<script>
+  const loginView = document.getElementById("loginView");
+  const dashboardView = document.getElementById("dashboardView");
+  const adminLogoutLink = document.getElementById("adminLogoutLink");
+
+  function showLogin() {
+    loginView.style.display = "flex";
+    dashboardView.style.display = "none";
+    adminLogoutLink.style.display = "none";
+  }
+  function showDashboard() {
+    loginView.style.display = "none";
+    dashboardView.style.display = "block";
+    adminLogoutLink.style.display = "inline";
+    renderDashboard();
+  }
+
+  if (Store.isAdminLoggedIn()) {
+    showDashboard();
+  } else {
+    showLogin();
+  }
+
+  const loginForm = document.getElementById("adminLoginForm");
+  const loginError = document.getElementById("loginError");
+  loginForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    loginError.classList.remove("show");
+    const email = document.getElementById("adminEmail").value.trim();
+    const password = document.getElementById("adminPassword").value;
+    const result = Store.adminLogin(email, password);
+    if (result.error) {
+      loginError.textContent = result.error;
+      loginError.classList.add("show");
+      return;
+    }
+    showDashboard();
+  });
+
+  adminLogoutLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    Store.adminLogout();
+    showLogin();
+  });
+
+  // ---------------- Dashboard rendering ----------------
+  const listWrap = document.getElementById("listWrap");
+  const adminStats = document.getElementById("adminStats");
+  const lightbox = document.getElementById("lightbox");
+  const lightboxImg = document.getElementById("lightboxImg");
+
+  function row(u) {
+    const thumb = u.selfie
+      ? `<img class="thumb" src="${u.selfie}" data-full="${u.selfie}" alt="Selfie of ${u.name}" />`
+      : `<div class="thumb placeholder">No photo</div>`;
+
+    const photoYes = u.photoVerified === true;
+    const photoNo = u.photoVerified !== true;
+    const manualYes = u.manualVerified === true;
+    const fullyVerified = Store.isFullyVerified(u);
+    const canApprove = photoYes && manualYes && !fullyVerified;
+
+    return `
+      <div class="admin-row" data-id="${u.id}">
+        <div>${thumb}</div>
+        <div class="name-cell">${u.name}<span class="email">${u.email}</span></div>
+        <div>
+          <span class="badge ${fullyVerified ? "verified" : "pending"}">${fullyVerified ? "Verified" : "Pending"}</span>
+        </div>
+        <div class="toggle-group" data-field="photoVerified">
+          <button class="toggle-btn yes-btn ${photoYes ? "on" : ""}" data-value="true">Photo: Yes</button>
+          <button class="toggle-btn no-btn ${photoNo ? "on" : ""}" data-value="false">No</button>
+        </div>
+        <div class="toggle-group" data-field="manualVerified">
+          <button class="toggle-btn yes-btn ${manualYes ? "on" : ""}" data-value="true">Manual: Yes</button>
+          <button class="toggle-btn no-btn ${!manualYes ? "on" : ""}" data-value="false">No</button>
+        </div>
+        <div>
+          <button class="approve-btn ${fullyVerified ? "done" : ""}" data-action="approve" ${!canApprove ? "disabled" : ""}>
+            ${fullyVerified ? "✓ Verified — Full Access" : "Approve Verification"}
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderDashboard() {
+    const users = Store.getAllUsers().filter((u) => u.selfie);
+    const pendingCount = users.filter((u) => !Store.isFullyVerified(u)).length;
+    const verifiedCount = users.filter((u) => Store.isFullyVerified(u)).length;
+
+    adminStats.innerHTML = `
+      <div class="mini-stat">Total submissions <b>${users.length}</b></div>
+      <div class="mini-stat">Awaiting review <b>${pendingCount}</b></div>
+      <div class="mini-stat">Verified <b>${verifiedCount}</b></div>
+    `;
+
+    if (users.length === 0) {
+      listWrap.innerHTML = `<div class="admin-list"><div class="empty-state">No submissions yet. Once a user completes photo verification, they'll show up here.</div></div>`;
+      return;
+    }
+
+    listWrap.innerHTML = `
+      <div class="admin-list">
+        <div class="admin-row head">
+          <div></div><div>User</div><div>Status</div><div>Photo Verified</div><div>Manual Verified</div><div>Action</div>
+        </div>
+        ${users.map(row).join("")}
+      </div>
+    `;
+  }
+
+  listWrap.addEventListener("click", (e) => {
+    const thumb = e.target.closest(".thumb");
+    if (thumb && thumb.dataset.full) {
+      lightboxImg.src = thumb.dataset.full;
+      lightbox.classList.add("open");
+      return;
+    }
+
+    const approveBtn = e.target.closest(".approve-btn");
+    if (approveBtn && !approveBtn.disabled) {
+      const rowEl = approveBtn.closest(".admin-row");
+      const userId = rowEl.dataset.id;
+      const result = Store.approveVerification(userId);
+      if (result.error) {
+        alert(result.error);
+      }
+      renderDashboard();
+      return;
+    }
+
+    const toggleBtn = e.target.closest(".toggle-btn");
+    if (toggleBtn) {
+      const group = toggleBtn.closest(".toggle-group");
+      const rowEl = toggleBtn.closest(".admin-row");
+      const userId = rowEl.dataset.id;
+      const field = group.dataset.field;
+      const value = toggleBtn.dataset.value === "true";
+      Store.setVerification(userId, field, value);
+      renderDashboard();
+    }
+  });
+
+  document.getElementById("lightboxClose").addEventListener("click", () => lightbox.classList.remove("open"));
+  lightbox.addEventListener("click", (e) => { if (e.target === lightbox) lightbox.classList.remove("open"); });
+</script>
+
+</body>
+</html>

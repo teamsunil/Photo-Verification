@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Verification pending — PhotoVerify</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-mark">P</span>PhotoVerify</div>
+  <nav>
+    <span class="user-chip" id="userChip"></span>
+    <a href="admin.html">Admin</a>
+    <a href="#" id="logoutLink">Log out</a>
+  </nav>
+</div>
+
+<div class="page center">
+  <div class="stage">
+    <div class="pstep-wrap" id="progressBar"></div>
+    <div class="card">
+      <div class="status-icon pending">⏳</div>
+      <h1 class="title">Verification Pending</h1>
+      <p class="lede" id="ledeText">Thanks — we've received your selfie. An admin needs to complete a manual review before your account is fully verified.</p>
+
+      <ul class="checklist">
+        <li><span>Email Verified</span><span class="badge yes">Yes</span></li>
+        <li><span>Photo Verified</span><span class="badge" id="photoBadge">—</span></li>
+        <li><span>Manual Verified</span><span class="badge" id="manualBadge">—</span></li>
+      </ul>
+
+      <div class="access-banner locked">Your dashboard stays locked until both checks are approved.</div>
+    </div>
+    <p style="text-align:center; font-size:13px; color:var(--ink-soft); margin-top:16px;">
+      This page updates once an admin reviews your selfie. <a href="#" id="refreshLink">Refresh status</a>
+    </p>
+  </div>
+</div>
+
+<script src="store.js"></script>
+<script src="progress.js"></script>
+<script>
+  function render() {
+    const user = Store.getCurrentUser();
+    if (!user) { window.location.href = "register.html"; return; }
+    if (!user.emailVerified) { window.location.href = "email-verify.html"; return; }
+    if (!user.selfie) { window.location.href = "verify.html"; return; }
+
+    const status = Store.getStatus(user);
+    if (status === "verified") { window.location.href = "dashboard.html"; return; }
+
+    document.getElementById("userChip").textContent = user.name;
+    renderProgress(stepIndexForStatus(status));
+
+    const photoDone = user.photoVerified === true;
+    const manualDone = user.manualVerified === true;
+
+    const photoBadge = document.getElementById("photoBadge");
+    photoBadge.textContent = photoDone ? "Yes" : "No";
+    photoBadge.className = "badge " + (photoDone ? "yes" : "no");
+
+    const manualBadge = document.getElementById("manualBadge");
+    manualBadge.textContent = manualDone ? "Yes" : "No";
+    manualBadge.className = "badge " + (manualDone ? "yes" : "no");
+  }
+
+  document.getElementById("refreshLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    render();
+  });
+  document.getElementById("logoutLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    Store.logout();
+    window.location.href = "register.html";
+  });
+
+  render();
+</script>
+
+</body>
+</html>

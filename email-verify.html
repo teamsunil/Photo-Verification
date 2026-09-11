@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Verify your email — PhotoVerify</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-mark">P</span>PhotoVerify</div>
+  <nav>
+    <span class="user-chip" id="userChip"></span>
+    <a href="admin.html">Admin</a>
+  </nav>
+</div>
+
+<div class="page">
+  <div class="stage">
+    <div class="pstep-wrap" id="progressBar"></div>
+    <div class="card">
+      <p class="eyebrow-line">Step 2 of 5</p>
+      <h1 class="title">Verify your email</h1>
+      <p class="lede" id="ledeText">We've sent a confirmation link to your inbox. In this demo, just click the button below to simulate confirming it.</p>
+
+      <div class="info-banner">
+        <span>✉️</span>
+        <span id="emailLine">Confirming email for you.</span>
+      </div>
+
+      <button id="verifyBtn" class="btn btn-primary">Verify Email</button>
+    </div>
+  </div>
+</div>
+
+<script src="store.js"></script>
+<script src="progress.js"></script>
+<script>
+  const user = Store.getCurrentUser();
+  if (!user) {
+    window.location.href = "register.html";
+  } else if (user.emailVerified) {
+    window.location.href = pageForStatus(Store.getStatus(user));
+  } else {
+    document.getElementById("userChip").textContent = user.name;
+    document.getElementById("emailLine").textContent = "Confirmation link sent to " + user.email;
+  }
+
+  renderProgress(1);
+
+  const verifyBtn = document.getElementById("verifyBtn");
+  verifyBtn.addEventListener("click", () => {
+    verifyBtn.disabled = true;
+    verifyBtn.textContent = "Verifying…";
+    setTimeout(() => {
+      Store.verifyEmail(user.id);
+      window.location.href = "verify.html";
+    }, 500);
+  });
+</script>
+
+</body>
+</html>

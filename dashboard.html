@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard — PhotoVerify</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-mark">P</span>PhotoVerify</div>
+  <nav>
+    <span class="user-chip" id="userChip"></span>
+    <a href="admin.html">Admin</a>
+    <a href="#" id="logoutLink">Log out</a>
+  </nav>
+</div>
+
+<div class="dash-wrap">
+  <div class="dash-header">
+    <h1 id="greeting">Welcome</h1>
+    <p id="subGreeting">Here's your verification status and account access.</p>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Email Verified</div>
+      <div class="stat-value"><span class="badge yes">Yes</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Photo Verified</div>
+      <div class="stat-value" id="photoStat"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Manual Verified</div>
+      <div class="stat-value" id="manualStat"></div>
+    </div>
+  </div>
+
+  <div id="panelArea"></div>
+</div>
+
+<script src="store.js"></script>
+<script src="progress.js"></script>
+<script>
+  function badgeHTML(isYes) {
+    return `<span class="badge ${isYes ? "yes" : "no"}">${isYes ? "✓ Yes" : "No"}</span>`;
+  }
+
+  function render() {
+    const user = Store.getCurrentUser();
+    if (!user) { window.location.href = "register.html"; return; }
+    if (!user.emailVerified) { window.location.href = "email-verify.html"; return; }
+    if (!user.selfie) { window.location.href = "verify.html"; return; }
+
+    // The dashboard is protected: unverified users are redirected back to the
+    // pending screen rather than seeing any dashboard content.
+    const fullyVerified = Store.isFullyVerified(user);
+    if (!fullyVerified) {
+      window.location.href = "pending.html";
+      return;
+    }
+
+    document.getElementById("userChip").textContent = user.name;
+    document.getElementById("greeting").textContent = "Welcome, " + user.name.split(" ")[0];
+    document.getElementById("photoStat").innerHTML = badgeHTML(user.photoVerified === true);
+    document.getElementById("manualStat").innerHTML = badgeHTML(user.manualVerified === true);
+    document.getElementById("subGreeting").textContent = "You're verified. Full website access is unlocked.";
+
+    document.getElementById("panelArea").innerHTML = `
+      <div class="unlocked-panel">
+        <span class="badge verified" style="margin-bottom:12px;">✓ Verified — Full Website Access</span>
+        <h3 style="margin:4px 0 4px; font-size:19px;">Everything is unlocked</h3>
+        <p style="color:var(--ink-soft); font-size:14px; margin:0;">Your identity has been confirmed by both the automated photo check and a manual admin review.</p>
+        <div class="feature-grid">
+          <div class="feature-tile"><div class="feature-glyph">💳</div><div class="feature-name">Payments</div></div>
+          <div class="feature-tile"><div class="feature-glyph">📁</div><div class="feature-name">Private files</div></div>
+          <div class="feature-tile"><div class="feature-glyph">💬</div><div class="feature-name">Messaging</div></div>
+          <div class="feature-tile"><div class="feature-glyph">📊</div><div class="feature-name">Analytics</div></div>
+          <div class="feature-tile"><div class="feature-glyph">⚙️</div><div class="feature-name">Settings</div></div>
+          <div class="feature-tile"><div class="feature-glyph">🔐</div><div class="feature-name">Security</div></div>
+        </div>
+      </div>
+    `;
+  }
+
+  document.getElementById("logoutLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    Store.logout();
+    window.location.href = "register.html";
+  });
+
+  render();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Photo verification — PhotoVerify</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-mark">P</span>PhotoVerify</div>
+  <nav>
+    <span class="user-chip" id="userChip"></span>
+    <a href="admin.html">Admin</a>
+  </nav>
+</div>
+
+<div class="page">
+  <div class="stage">
+    <div class="pstep-wrap" id="progressBar"></div>
+    <div class="card">
+      <p class="eyebrow-line">Step 3 of 5</p>
+      <h1 class="title">Take a verification selfie</h1>
+
+      <div class="instruction-banner">
+        <span>👍</span>
+        <span>Please take a selfie showing a thumbs up. Make sure your face and hand are both clearly visible in the frame.</span>
+      </div>
+
+      <div id="errorBox" class="error-box" style="display:none;"></div>
+
+      <div class="frame-wrap" id="frameWrap">
+        <div class="frame-idle" id="frameIdle">
+          <span class="camera-glyph">📷</span>
+          <span>Camera is off. Click "Start Camera" below to begin.</span>
+        </div>
+        <video id="video" autoplay playsinline muted style="display:none;"></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <img id="previewImg" style="display:none;" alt="Captured selfie preview" />
+        <div class="frame-notch" id="frameNotch" style="display:none;"></div>
+        <div class="camera-status" id="cameraStatus" style="display:none;"></div>
+      </div>
+
+      <div id="startControls">
+        <button id="startBtn" class="btn btn-primary">Start Camera</button>
+      </div>
+
+      <div id="captureControls" style="display:none;">
+        <button id="captureBtn" class="btn btn-primary">Capture Selfie</button>
+      </div>
+
+      <div id="previewControls" class="btn-row" style="display:none;">
+        <button id="retakeBtn" class="btn btn-ghost">Retake</button>
+        <button id="submitBtn" class="btn btn-teal">Submit for Verification</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="store.js"></script>
+<script src="progress.js"></script>
+<script>
+  const currentUser = Store.getCurrentUser();
+  if (!currentUser) {
+    window.location.href = "register.html";
+  } else if (!currentUser.emailVerified) {
+    window.location.href = "email-verify.html";
+  } else if (currentUser.selfie) {
+    window.location.href = pageForStatus(Store.getStatus(currentUser));
+  } else {
+    document.getElementById("userChip").textContent = currentUser.name;
+  }
+
+  renderProgress(2);
+
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  const previewImg = document.getElementById("previewImg");
+  const frameIdle = document.getElementById("frameIdle");
+  const frameNotch = document.getElementById("frameNotch");
+  const cameraStatus = document.getElementById("cameraStatus");
+  const errorBox = document.getElementById("errorBox");
+
+  const startControls = document.getElementById("startControls");
+  const captureControls = document.getElementById("captureControls");
+  const previewControls = document.getElementById("previewControls");
+  const startBtn = document.getElementById("startBtn");
+  const captureBtn = document.getElementById("captureBtn");
+  const retakeBtn = document.getElementById("retakeBtn");
+  const submitBtn = document.getElementById("submitBtn");
+
+  let stream = null;
+  let capturedDataUrl = null;
+
+  function showError(msg) {
+    errorBox.style.display = "block";
+    errorBox.innerHTML = msg + '<br><span class="retry-link" id="retryLink">Try again</span>';
+    document.getElementById("retryLink").addEventListener("click", () => {
+      errorBox.style.display = "none";
+      startCamera();
+    });
+  }
+  function hideError() { errorBox.style.display = "none"; }
+
+  async function startCamera() {
+    hideError();
+    startBtn.disabled = true;
+    startBtn.textContent = "Requesting camera access…";
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showError("Your browser doesn't support camera access. Please try a recent version of Chrome, Safari, or Edge.");
+      startBtn.disabled = false;
+      startBtn.textContent = "Start Camera";
+      return;
+    }
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      video.srcObject = stream;
+      frameIdle.style.display = "none";
+      video.style.display = "block";
+      frameNotch.style.display = "block";
+      cameraStatus.style.display = "block";
+      cameraStatus.textContent = "Center your face and hand, then capture";
+      startControls.style.display = "none";
+      captureControls.style.display = "block";
+    } catch (err) {
+      let msg;
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        msg = "Camera permission was denied. Please allow camera access in your browser's site settings and try again.";
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        msg = "No camera was found on this device. Please connect a camera and try again.";
+      } else if (err.name === "NotReadableError") {
+        msg = "Your camera is already in use by another app. Please close it and try again.";
+      } else {
+        msg = "We couldn't access your camera. Please check your permissions and try again.";
+      }
+      showError(msg);
+      startBtn.disabled = false;
+      startBtn.textContent = "Start Camera";
+    }
+  }
+
+  function stopCamera() {
+    if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+  }
+
+  startBtn.addEventListener("click", startCamera);
+
+  captureBtn.addEventListener("click", () => {
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.translate(w, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, w, h);
+    capturedDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+
+    previewImg.src = capturedDataUrl;
+    video.style.display = "none";
+    previewImg.style.display = "block";
+    cameraStatus.style.display = "none";
+    captureControls.style.display = "none";
+    previewControls.style.display = "flex";
+    stopCamera();
+  });
+
+  retakeBtn.addEventListener("click", () => {
+    capturedDataUrl = null;
+    previewImg.style.display = "none";
+    previewControls.style.display = "none";
+    frameNotch.style.display = "none";
+    frameIdle.style.display = "flex";
+    startControls.style.display = "block";
+    startBtn.disabled = false;
+    startBtn.textContent = "Start Camera";
+  });
+
+  submitBtn.addEventListener("click", () => {
+    if (!capturedDataUrl) return;
+    submitBtn.disabled = true;
+    retakeBtn.disabled = true;
+    submitBtn.textContent = "Submitting…";
+    Store.saveSelfie(currentUser.id, capturedDataUrl);
+    window.location.href = "pending.html";
+  });
+
+  window.addEventListener("beforeunload", stopCamera);
+</script>
+
+</body>
+</html>
